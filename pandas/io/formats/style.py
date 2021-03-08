@@ -426,15 +426,27 @@ class Styler:
                                                   value)))]
       )
 
-    def to_latex(self, path, **kwargs):
+    def to_latex(self, buf=None, encoding=None, **kwargs):
+        r"""
+        Render object to a LaTeX tabular, longtable, or nested table/tabular while applying styles.
+
+        See Also
+        --------
+        DataFrame.to_latex : Render object to a LaTeX tabular, longtable, or nested table/tabular without applying special styles.
+        """
+
         translated = self._translate()
         
         # Convert data to str
-        # NB: This is plain wrong because it discards features such as float formatting.
+        # NB: astype(str) is plain wrong because it discards features such as float formatting.
         # For a good result, a better integration is needed with the code that currently does cell formatting in DataFrame.to_latex.
+        from pandas.io.formats.format import DataFrameFormatter, save_to_buffer
+
+        formatter = DataFrameFormatter(self.data)
+
         out_df = self.data.copy()
         for i in range(self.data.shape[1]):
-            out_df.iloc[:,i] = out_df.iloc[:,i].astype(str)
+            out_df.iloc[:,i] = formatter.format_col(i) #out_df.iloc[:,i].astype(str)
 
         cellstyles = defaultdict(dict, {cell['selector'] : dict(cell['props']) 
                                         for cell in translated['cellstyle']})
@@ -452,15 +464,17 @@ class Styler:
                     print("Warning, unsupported attributes: "
                           "{}".format(cell_style))
 
-                out_df.loc[r_idx, c_idx] = cell_val
+                out_df.iat[r_idx, c_idx-1] = cell_val
 
-        kwargs['index'] = False
+        assert out_df.shape == self.data.shape, f"{out_df.shape} vs. {self.data.shape}"
+
         with pd.option_context('display.max_colwidth', -1):
-            output = out_df.to_latex(**kwargs)
-        output = _latex_restore(output)
+            # TODO: DataFrame.to_latex aligns string columns left.
+            # This has to be worked around.  
+            output = _latex_restore(out_df.to_latex(**kwargs))
 
-        with open(path, 'w') as fout:
-            fout.write(output)
+        return save_to_buffer(output, buf, encoding=encoding)
+
 
     def _translate(self):
         """

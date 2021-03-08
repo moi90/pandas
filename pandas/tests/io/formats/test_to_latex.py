@@ -35,33 +35,33 @@ def df_short():
     """Short dataframe for testing table/tabular/longtable LaTeX env."""
     return DataFrame({"a": [1, 2], "b": ["b1", "b2"]})
 
-
-class TestToLatex:
-    def test_to_latex_to_file(self, float_frame):
+@pytest.mark.parametrize("df_or_style", [lambda df: df, lambda df: df.style])
+class TestDataFrameToLatex:
+    def test_to_latex_to_file(self, float_frame, df_or_style):
         with tm.ensure_clean("test.tex") as path:
-            float_frame.to_latex(path)
+            df_or_style(float_frame).to_latex(path)
             with open(path) as f:
                 assert float_frame.to_latex() == f.read()
 
-    def test_to_latex_to_file_utf8_with_encoding(self):
+    def test_to_latex_to_file_utf8_with_encoding(self, df_or_style):
         # test with utf-8 and encoding option (GH 7061)
         df = DataFrame([["au\xdfgangen"]])
         with tm.ensure_clean("test.tex") as path:
-            df.to_latex(path, encoding="utf-8")
+            df_or_style(df).to_latex(path, encoding="utf-8")
             with codecs.open(path, "r", encoding="utf-8") as f:
                 assert df.to_latex() == f.read()
 
-    def test_to_latex_to_file_utf8_without_encoding(self):
+    def test_to_latex_to_file_utf8_without_encoding(self, df_or_style):
         # test with utf-8 without encoding option
         df = DataFrame([["au\xdfgangen"]])
         with tm.ensure_clean("test.tex") as path:
-            df.to_latex(path)
+            df_or_style(df).to_latex(path)
             with codecs.open(path, "r", encoding="utf-8") as f:
                 assert df.to_latex() == f.read()
 
-    def test_to_latex_tabular_with_index(self):
+    def test_to_latex_tabular_with_index(self, df_or_style):
         df = DataFrame({"a": [1, 2], "b": ["b1", "b2"]})
-        result = df.to_latex()
+        result = df_or_style(df).to_latex()
         expected = _dedent(
             r"""
             \begin{tabular}{lrl}
@@ -76,9 +76,9 @@ class TestToLatex:
         )
         assert result == expected
 
-    def test_to_latex_tabular_without_index(self):
+    def test_to_latex_tabular_without_index(self, df_or_style):
         df = DataFrame({"a": [1, 2], "b": ["b1", "b2"]})
-        result = df.to_latex(index=False)
+        result = df_or_style(df).to_latex(index=False)
         expected = _dedent(
             r"""
             \begin{tabular}{rl}
@@ -97,19 +97,19 @@ class TestToLatex:
         "bad_column_format",
         [5, 1.2, ["l", "r"], ("r", "c"), {"r", "c", "l"}, {"a": "r", "b": "l"}],
     )
-    def test_to_latex_bad_column_format(self, bad_column_format):
+    def test_to_latex_bad_column_format(self, bad_column_format, df_or_style):
         df = DataFrame({"a": [1, 2], "b": ["b1", "b2"]})
         msg = r"column_format must be str or unicode"
         with pytest.raises(ValueError, match=msg):
-            df.to_latex(column_format=bad_column_format)
+            df_or_style(df).to_latex(column_format=bad_column_format)
 
-    def test_to_latex_column_format_just_works(self, float_frame):
+    def test_to_latex_column_format_just_works(self, float_frame, df_or_style):
         # GH Bug #9402
-        float_frame.to_latex(column_format="lcr")
+        df_or_style(float_frame).to_latex(column_format="lcr")
 
-    def test_to_latex_column_format(self):
+    def test_to_latex_column_format(self, df_or_style):
         df = DataFrame({"a": [1, 2], "b": ["b1", "b2"]})
-        result = df.to_latex(column_format="lcr")
+        result = df_or_style(df).to_latex(column_format="lcr")
         expected = _dedent(
             r"""
             \begin{tabular}{lcr}
@@ -124,9 +124,9 @@ class TestToLatex:
         )
         assert result == expected
 
-    def test_to_latex_empty_tabular(self):
+    def test_to_latex_empty_tabular(self, df_or_style):
         df = DataFrame()
-        result = df.to_latex()
+        result = df_or_style(df).to_latex()
         expected = _dedent(
             r"""
             \begin{tabular}{l}
@@ -140,29 +140,11 @@ class TestToLatex:
         )
         assert result == expected
 
-    def test_to_latex_series(self):
-        s = Series(["a", "b", "c"])
-        result = s.to_latex()
-        expected = _dedent(
-            r"""
-            \begin{tabular}{ll}
-            \toprule
-            {} &  0 \\
-            \midrule
-            0 &  a \\
-            1 &  b \\
-            2 &  c \\
-            \bottomrule
-            \end{tabular}
-            """
-        )
-        assert result == expected
-
-    def test_to_latex_midrule_location(self):
+    def test_to_latex_midrule_location(self, df_or_style):
         # GH 18326
         df = DataFrame({"a": [1, 2]})
         df.index.name = "foo"
-        result = df.to_latex(index_names=False)
+        result = df_or_style(df).to_latex(index_names=False)
         expected = _dedent(
             r"""
             \begin{tabular}{lr}
@@ -176,6 +158,24 @@ class TestToLatex:
             """
         )
         assert result == expected
+
+def test_to_latex_series():
+    s = Series(["a", "b", "c"])
+    result = s.to_latex()
+    expected = _dedent(
+        r"""
+        \begin{tabular}{ll}
+        \toprule
+        {} &  0 \\
+        \midrule
+        0 &  a \\
+        1 &  b \\
+        2 &  c \\
+        \bottomrule
+        \end{tabular}
+        """
+    )
+    assert result == expected
 
 
 class TestToLatexLongtable:
