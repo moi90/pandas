@@ -38,10 +38,6 @@ from pandas._typing import (
     FrameOrSeriesUnion,
     IndexLabel,
 )
-from pandas.compat import (
-    iteritems,
-    range,
-)
 from pandas.compat._optional import import_optional_dependency
 from pandas.util._decorators import doc
 
@@ -51,7 +47,6 @@ import pandas as pd
 from pandas.api.types import is_list_like
 from pandas.core import generic
 import pandas.core.common as com
-from pandas.core.config import get_option
 from pandas.core.frame import DataFrame
 from pandas.core.generic import (
     NDFrame,
@@ -425,15 +420,18 @@ class Styler:
 
     # Order affects LaTeX code, and potentially visual result:
     SUPPORTED_LATEX_ATTRS = OrderedDict(
-    [['background-color',
+    [('background-color',
       lambda value, color :
       _latex_preserve("\cellcolor[HTML]{{{}}}{}".format(color.strip()[1:],
-                                                  value))]]
+                                                  value)))]
       )
 
     def to_latex(self, path, **kwargs):
         translated = self._translate()
         
+        # Convert data to str
+        # NB: This is plain wrong because it discards features such as float formatting.
+        # For a good result, a better integration is needed with the code that currently does cell formatting in DataFrame.to_latex.
         out_df = self.data.copy()
         for i in range(self.data.shape[1]):
             out_df.iloc[:,i] = out_df.iloc[:,i].astype(str)
@@ -445,7 +443,7 @@ class Styler:
             for c_idx, cell in enumerate(row):
                 cell_val = cell['value']
                 cell_style = cellstyles[cell['id']]
-                for attr, func in iteritems(self.SUPPORTED_LATEX_ATTRS):
+                for attr, func in self.SUPPORTED_LATEX_ATTRS.items():
                     if attr in cell_style:
                         param = cell_style.pop(attr)
                         cell_val = func(cell_val, param)
