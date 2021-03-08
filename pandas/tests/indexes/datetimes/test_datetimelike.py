@@ -1,22 +1,32 @@
 """ generic tests from the Datetimelike class """
+import pytest
 
-from pandas.util import testing as tm
-from pandas import DatetimeIndex, date_range
-
-from ..datetimelike import DatetimeLike
+from pandas import (
+    DatetimeIndex,
+    date_range,
+)
+import pandas._testing as tm
+from pandas.tests.indexes.datetimelike import DatetimeLike
 
 
 class TestDatetimeIndex(DatetimeLike):
     _holder = DatetimeIndex
 
-    def setup_method(self, method):
-        self.indices = dict(index=tm.makeDateIndex(10),
-                            index_dec=date_range('20130110', periods=10,
-                                                 freq='-1D'))
-        self.setup_indices()
+    @pytest.fixture(
+        params=[tm.makeDateIndex(10), date_range("20130110", periods=10, freq="-1D")],
+        ids=["index_inc", "index_dec"],
+    )
+    def index(self, request):
+        return request.param
 
-    def create_index(self):
-        return date_range('20130101', periods=5)
+    def create_index(self) -> DatetimeIndex:
+        return date_range("20130101", periods=5)
+
+    def test_format(self):
+        # GH35439
+        idx = self.create_index()
+        expected = [f"{x:%Y-%m-%d}" for x in idx]
+        assert idx.format() == expected
 
     def test_shift(self):
         pass  # handled in test_ops

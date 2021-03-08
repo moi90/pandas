@@ -1,7 +1,14 @@
-sudo: false
 language: python
-# Default Python version is usually 2.7
-python: 3.5
+python: 3.7
+
+addons:
+  apt:
+    update: true
+    packages:
+      - xvfb
+
+services:
+  - xvfb
 
 # To turn off cached cython files and compiler cache
 # set NOCACHE-true
@@ -9,10 +16,10 @@ python: 3.5
 # travis cache --delete inside the project directory from the travis command line client
 # The cache directories will be deleted if anything in ci/ changes in a commit
 cache:
- ccache: true
- directories:
-  - $HOME/.cache # cython cache
-  - $HOME/.ccache # compiler cache
+  apt: true
+  ccache: true
+  directories:
+    - $HOME/.cache # cython cache
 
 env:
   global:
@@ -22,76 +29,26 @@ env:
     - secure: "EkWLZhbrp/mXJOx38CHjs7BnjXafsqHtwxPQrqWy457VDFWhIY1DMnIR/lOWG+a20Qv52sCsFtiZEmMfUjf0pLGXOqurdxbYBGJ7/ikFLk9yV2rDwiArUlVM9bWFnFxHvdz9zewBH55WurrY4ShZWyV+x2dWjjceWG5VpWeI6sA="
 
 git:
-    # for cloning
-    depth: 1000
+  depth: false
 
 matrix:
-    fast_finish: true
-    exclude:
-      # Exclude the default Python 3.5 build
-      - python: 3.5
-    include:
-    - os: osx
-      language: generic
-      env:
-        - JOB="3.5, OSX" ENV_FILE="ci/travis-35-osx.yaml" TEST_ARGS="--skip-slow --skip-network"
+  fast_finish: true
 
-    - dist: trusty
+  include:
+    - arch: arm64
       env:
-        - JOB="3.7" ENV_FILE="ci/travis-37.yaml" TEST_ARGS="--skip-slow --skip-network"
+        - JOB="3.7, arm64" PYTEST_WORKERS=1 ENV_FILE="ci/deps/travis-37-arm64.yaml" PATTERN="(not slow and not network and not clipboard and not arm_slow)"
 
-    - dist: trusty
+  allow_failures:
+    # Moved to allowed_failures 2020-09-29 due to timeouts https://github.com/pandas-dev/pandas/issues/36719
+    - arch: arm64
       env:
-        - JOB="2.7, locale, slow, old NumPy" ENV_FILE="ci/travis-27-locale.yaml" LOCALE_OVERRIDE="zh_CN.UTF-8" SLOW=true
-      addons:
-        apt:
-          packages:
-          - language-pack-zh-hans
-    - dist: trusty
-      env:
-        - JOB="2.7, lint" ENV_FILE="ci/travis-27.yaml" TEST_ARGS="--skip-slow" LINT=true
-      addons:
-        apt:
-          packages:
-          - python-gtk2
-    - dist: trusty
-      env:
-        - JOB="3.6, coverage" ENV_FILE="ci/travis-36.yaml" TEST_ARGS="--skip-slow --skip-network" PANDAS_TESTING_MODE="deprecate" COVERAGE=true
-    # In allow_failures
-    - dist: trusty
-      env:
-        - JOB="3.6, slow" ENV_FILE="ci/travis-36-slow.yaml" SLOW=true
-    # In allow_failures
-    - dist: trusty
-      env:
-        - JOB="3.6, NumPy dev" ENV_FILE="ci/travis-36-numpydev.yaml" TEST_ARGS="--skip-slow --skip-network" PANDAS_TESTING_MODE="deprecate"
-      addons:
-        apt:
-          packages:
-          - xsel
-    # In allow_failures
-    - dist: trusty
-      env:
-        - JOB="3.6, doc" ENV_FILE="ci/travis-36-doc.yaml" DOC=true
-    allow_failures:
-      - dist: trusty
-        env:
-          - JOB="3.6, slow" ENV_FILE="ci/travis-36-slow.yaml" SLOW=true
-      - dist: trusty
-        env:
-          - JOB="3.6, NumPy dev" ENV_FILE="ci/travis-36-numpydev.yaml" TEST_ARGS="--skip-slow --skip-network" PANDAS_TESTING_MODE="deprecate"
-        addons:
-          apt:
-            packages:
-            - xsel
-      - dist: trusty
-        env:
-          - JOB="3.6, doc" ENV_FILE="ci/travis-36-doc.yaml" DOC=true
+        - JOB="3.7, arm64" PYTEST_WORKERS=1 ENV_FILE="ci/deps/travis-37-arm64.yaml" PATTERN="(not slow and not network and not clipboard and not arm_slow)"
+
 
 before_install:
   - echo "before_install"
-  # set non-blocking IO on travis
-  # https://github.com/travis-ci/travis-ci/issues/8920#issuecomment-352661024
+  # Use blocking IO on travis.  Ref:  https://github.com/travis-ci/travis-ci/issues/8920#issuecomment-352661024
   - python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
   - source ci/travis_process_gbq_encryption.sh
   - export PATH="$HOME/miniconda3/bin:$PATH"
@@ -99,40 +56,23 @@ before_install:
   - pwd
   - uname -a
   - git --version
-  - git tag
+  - ./ci/check_git_tags.sh
 
 install:
   - echo "install start"
   - ci/prep_cython_cache.sh
-  - ci/install_travis.sh
+  - ci/setup_env.sh
   - ci/submit_cython_cache.sh
   - echo "install done"
 
-before_script:
-  - ci/install_db_travis.sh
-  - export DISPLAY=":99.0"
-  - ci/before_script_travis.sh
-
 script:
   - echo "script start"
-  - ci/run_build_docs.sh
-  - ci/script_single.sh
-  - ci/script_multi.sh
-  - ci/lint.sh
-  - echo "checking imports"
-  - source activate pandas && python ci/check_imports.py
-  - echo "script done"
-
-after_success:
-  -  ci/upload_coverage.sh
+  - echo "$JOB"
+  - source activate pandas-dev
+  - ci/run_tests.sh
 
 after_script:
   - echo "after_script start"
-  - source activate pandas && pushd /tmp && python -c "import pandas; pandas.show_versions();" && popd
-  - if [ -e /tmp/single.xml ]; then
-    ci/print_skipped.py /tmp/single.xml;
-    fi
-  - if [ -e /tmp/multiple.xml ]; then
-    ci/print_skipped.py /tmp/multiple.xml;
-    fi
+  - source activate pandas-dev && pushd /tmp && python -c "import pandas; pandas.show_versions();" && popd
+  - ci/print_skipped.py
   - echo "after_script done"
