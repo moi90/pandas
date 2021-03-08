@@ -3,11 +3,7 @@ Module for applying conditional formatting to DataFrames and Series.
 """
 from __future__ import annotations
 
-from collections import (
-    MutableMapping,
-    OrderedDict,
-    defaultdict,
-)
+from collections import MutableMapping, OrderedDict, defaultdict
 from contextlib import contextmanager
 import copy
 from functools import partial
@@ -32,12 +28,7 @@ import numpy as np
 from pandas._config import get_option
 
 from pandas._libs import lib
-from pandas._typing import (
-    Axis,
-    FrameOrSeries,
-    FrameOrSeriesUnion,
-    IndexLabel,
-)
+from pandas._typing import Axis, FrameOrSeries, FrameOrSeriesUnion, IndexLabel
 from pandas.compat._optional import import_optional_dependency
 from pandas.util._decorators import doc
 
@@ -48,10 +39,7 @@ from pandas.api.types import is_list_like
 from pandas.core import generic
 import pandas.core.common as com
 from pandas.core.frame import DataFrame
-from pandas.core.generic import (
-    NDFrame,
-    _shared_docs,
-)
+from pandas.core.generic import NDFrame, _shared_docs
 from pandas.core.indexes.api import Index
 
 jinja2 = import_optional_dependency("jinja2", extra="DataFrame.style requires jinja2.")
@@ -83,25 +71,28 @@ def _mpl(func: Callable):
     else:
         raise ImportError(no_mpl_message.format(func.__name__))
 
+
 def _color_html_to_latex(color):
     color = color.strip()
-    r, g, b = [int((int(color[i:i+2], 16) / 255 * 100)) for i in (1, 3, 5)]
-    
+    r, g, b = [int((int(color[i : i + 2], 16) / 255 * 100)) for i in (1, 3, 5)]
+
     return "rgb:red,{};green,{};yellow,{}".format(r, g, b)
 
 
-ESCAPED = ['\\', '{', '}']
+ESCAPED = ["\\", "{", "}"]
+
 
 def _latex_preserve(text):
     for char in ESCAPED:
-        text = text.replace(char, 'pandas-repl-{}-'.format(ord(char)))
+        text = text.replace(char, "pandas-repl-{}-".format(ord(char)))
     return text
+
 
 def _latex_restore(text):
     for char in ESCAPED:
-        text = text.replace('pandas-repl-{}-'.format(ord(char)), char)
+        text = text.replace("pandas-repl-{}-".format(ord(char)), char)
     return text
-    
+
 
 class Styler:
     """
@@ -291,9 +282,7 @@ class Styler:
         return self
 
     def set_tooltips_class(
-        self,
-        name: Optional[str] = None,
-        properties: Optional[CSSProperties] = None,
+        self, name: Optional[str] = None, properties: Optional[CSSProperties] = None
     ) -> Styler:
         """
         Manually configure the name and/or properties of the class for
@@ -395,36 +384,59 @@ class Styler:
             engine=engine,
         )
 
-#    @Appender(_shared_docs['to_html'] % dict(
-#        axes='index, columns', klass='Styler',
-#        axes_single_arg="{0 or 'index', 1 or 'columns'}",
-#        optional_by="""
-#            by : str or list of str
-#                Name or list of names which refer to the axis items.""",
-#        versionadded_to_html='\n    .. versionadded:: 0.23.1'))
-    def to_html(self, html_writer, na_rep='',
-                 float_format=None, columns=None, header=True, index=True,
-                 index_label=None, startrow=0, startcol=0, engine=None,
-                 merge_cells=True, encoding=None, inf_rep='inf', verbose=True):
+    #    @Appender(_shared_docs['to_html'] % dict(
+    #        axes='index, columns', klass='Styler',
+    #        axes_single_arg="{0 or 'index', 1 or 'columns'}",
+    #        optional_by="""
+    #            by : str or list of str
+    #                Name or list of names which refer to the axis items.""",
+    #        versionadded_to_html='\n    .. versionadded:: 0.23.1'))
+    def to_html(
+        self,
+        html_writer,
+        na_rep="",
+        float_format=None,
+        columns=None,
+        header=True,
+        index=True,
+        index_label=None,
+        startrow=0,
+        startcol=0,
+        engine=None,
+        merge_cells=True,
+        encoding=None,
+        inf_rep="inf",
+        verbose=True,
+    ):
 
         from pandas.io.formats.html import HTMLFormatter
-        formatter = HTMLFormatter(self, na_rep=na_rep, columns=columns,
-#                                   header=header,
-                                   float_format=float_format, index=index,
-                                   index_label=index_label,
-#                                   merge_cells=merge_cells,
-                                   #inf_rep=inf_rep
-                                   )
-        formatter.write(html_writer, startrow=startrow,
-                        startcol=startcol, engine=engine)
+
+        formatter = HTMLFormatter(
+            self,
+            na_rep=na_rep,
+            columns=columns,
+            #                                   header=header,
+            float_format=float_format,
+            index=index,
+            index_label=index_label,
+            #                                   merge_cells=merge_cells,
+            # inf_rep=inf_rep
+        )
+        formatter.write(
+            html_writer, startrow=startrow, startcol=startcol, engine=engine
+        )
 
     # Order affects LaTeX code, and potentially visual result:
     SUPPORTED_LATEX_ATTRS = OrderedDict(
-    [('background-color',
-      lambda value, color :
-      _latex_preserve("\cellcolor[HTML]{{{}}}{}".format(color.strip()[1:],
-                                                  value)))]
-      )
+        [
+            (
+                "background-color",
+                lambda value, color: _latex_preserve(
+                    "\cellcolor[HTML]{{{}}}{}".format(color.strip()[1:], value)
+                ),
+            )
+        ]
+    )
 
     def to_latex(self, buf=None, encoding=None, **kwargs):
         r"""
@@ -436,45 +448,88 @@ class Styler:
         """
 
         translated = self._translate()
-        
+
         # Convert data to str
         # NB: astype(str) is plain wrong because it discards features such as float formatting.
         # For a good result, a better integration is needed with the code that currently does cell formatting in DataFrame.to_latex.
         from pandas.io.formats.format import DataFrameFormatter, save_to_buffer
+        from pandas.io.formats.latex import LatexFormatter
 
-        formatter = DataFrameFormatter(self.data)
+        df_formatter_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k
+            in {
+                "columns",
+                "col_space",
+                "header",
+                "index",
+                "na_rep",
+                "formatters",
+                "float_format",
+                "sparsify",
+                "index_names",
+                "decimal",
+                "bold_rows",
+                "escape",
+            }
+        }
+        df_formatter = DataFrameFormatter(self.data, **df_formatter_kwargs)
+
+        # This could be replaced by an introspection to make it more future proof
+        latex_formatter_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k
+            in {
+                "longtable",
+                "column_format",
+                "multicolumn",
+                "multicolumn_format",
+                "multirow",
+                "caption",
+                "label",
+                "position",
+            }
+        }
+
+        # Calculate correct column_format
+        latex_formatter = LatexFormatter(df_formatter, **latex_formatter_kwargs)
+        kwargs["column_format"] = latex_formatter.column_format
 
         out_df = self.data.copy()
         for i in range(self.data.shape[1]):
-            out_df.iloc[:,i] = formatter.format_col(i) #out_df.iloc[:,i].astype(str)
+            out_df.iloc[:, i] = df_formatter.format_col(
+                i
+            )  # out_df.iloc[:,i].astype(str)
 
-        cellstyles = defaultdict(dict, {cell['selector'] : dict(cell['props']) 
-                                        for cell in translated['cellstyle']})
+        cellstyles = defaultdict(
+            dict,
+            {cell["selector"]: dict(cell["props"]) for cell in translated["cellstyle"]},
+        )
 
-        for r_idx, row in enumerate(translated['body']):
+        for r_idx, row in enumerate(translated["body"]):
             for c_idx, cell in enumerate(row):
-                cell_val = cell['value']
-                cell_style = cellstyles[cell['id']]
+                cell_val = cell["value"]
+                cell_style = cellstyles[cell["id"]]
                 for attr, func in self.SUPPORTED_LATEX_ATTRS.items():
                     if attr in cell_style:
                         param = cell_style.pop(attr)
                         cell_val = func(cell_val, param)
                         print(param, cell_val)
                 if cell_style:
-                    print("Warning, unsupported attributes: "
-                          "{}".format(cell_style))
+                    print("Warning, unsupported attributes: " "{}".format(cell_style))
 
-                out_df.iat[r_idx, c_idx-1] = cell_val
+                out_df.iat[r_idx, c_idx - 1] = cell_val
 
         assert out_df.shape == self.data.shape, f"{out_df.shape} vs. {self.data.shape}"
 
-        with pd.option_context('display.max_colwidth', -1):
+        with pd.option_context("display.max_colwidth", -1):
             # TODO: DataFrame.to_latex aligns string columns left.
-            # This has to be worked around.  
+            # This has to be worked around.
             output = _latex_restore(out_df.to_latex(**kwargs))
 
         return save_to_buffer(output, buf, encoding=encoding)
-
 
     def _translate(self):
         """
@@ -530,10 +585,7 @@ class Styler:
 
             # ... except maybe the last for columns.names
             name = self.data.columns.names[r]
-            cs = [
-                BLANK_CLASS if name is None else INDEX_NAME_CLASS,
-                f"level{r}",
-            ]
+            cs = [BLANK_CLASS if name is None else INDEX_NAME_CLASS, f"level{r}"]
             name = BLANK_VALUE if name is None else name
             row_es.append(
                 {
@@ -547,11 +599,7 @@ class Styler:
 
             if clabels:
                 for c, value in enumerate(clabels[r]):
-                    cs = [
-                        COL_HEADING_CLASS,
-                        f"level{r}",
-                        f"col{c}",
-                    ]
+                    cs = [COL_HEADING_CLASS, f"level{r}", f"col{c}"]
                     cs.extend(
                         cell_context.get("col_headings", {}).get(r, {}).get(c, [])
                     )
@@ -600,11 +648,7 @@ class Styler:
         for r, row_tup in enumerate(self.data.itertuples()):
             row_es = []
             for c, value in enumerate(rlabels[r]):
-                rid = [
-                    ROW_HEADING_CLASS,
-                    f"level{c}",
-                    f"row{r}",
-                ]
+                rid = [ROW_HEADING_CLASS, f"level{c}", f"row{r}"]
                 es = {
                     "type": "th",
                     "is_visible": (_is_visible(r, c, idx_lengths) and not hidden_index),

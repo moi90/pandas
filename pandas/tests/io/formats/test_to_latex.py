@@ -41,7 +41,7 @@ class TestDataFrameToLatex:
         with tm.ensure_clean("test.tex") as path:
             df_or_style(float_frame).to_latex(path)
             with open(path) as f:
-                assert float_frame.to_latex() == f.read()
+                assert df_or_style(float_frame).to_latex() == f.read()
 
     def test_to_latex_to_file_utf8_with_encoding(self, df_or_style):
         # test with utf-8 and encoding option (GH 7061)
@@ -49,7 +49,7 @@ class TestDataFrameToLatex:
         with tm.ensure_clean("test.tex") as path:
             df_or_style(df).to_latex(path, encoding="utf-8")
             with codecs.open(path, "r", encoding="utf-8") as f:
-                assert df.to_latex() == f.read()
+                assert df_or_style(df).to_latex() == f.read()
 
     def test_to_latex_to_file_utf8_without_encoding(self, df_or_style):
         # test with utf-8 without encoding option
@@ -57,7 +57,7 @@ class TestDataFrameToLatex:
         with tm.ensure_clean("test.tex") as path:
             df_or_style(df).to_latex(path)
             with codecs.open(path, "r", encoding="utf-8") as f:
-                assert df.to_latex() == f.read()
+                assert df_or_style(df).to_latex() == f.read()
 
     def test_to_latex_tabular_with_index(self, df_or_style):
         df = DataFrame({"a": [1, 2], "b": ["b1", "b2"]})
