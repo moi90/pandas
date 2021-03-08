@@ -35,6 +35,7 @@ def df_short():
     """Short dataframe for testing table/tabular/longtable LaTeX env."""
     return DataFrame({"a": [1, 2], "b": ["b1", "b2"]})
 
+
 @pytest.mark.parametrize("df_or_style", [lambda df: df, lambda df: df.style])
 class TestDataFrameToLatex:
     def test_to_latex_to_file(self, float_frame, df_or_style):
@@ -158,6 +159,7 @@ class TestDataFrameToLatex:
             """
         )
         assert result == expected
+
 
 def test_to_latex_series():
     s = Series(["a", "b", "c"])

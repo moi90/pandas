@@ -3,7 +3,7 @@ Module for applying conditional formatting to DataFrames and Series.
 """
 from __future__ import annotations
 
-from collections import MutableMapping, OrderedDict, defaultdict
+from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 import copy
 from functools import partial
@@ -39,7 +39,7 @@ from pandas.api.types import is_list_like
 from pandas.core import generic
 import pandas.core.common as com
 from pandas.core.frame import DataFrame
-from pandas.core.generic import NDFrame, _shared_docs
+from pandas.core.generic import NDFrame
 from pandas.core.indexes.api import Index
 
 jinja2 = import_optional_dependency("jinja2", extra="DataFrame.style requires jinja2.")
@@ -432,7 +432,7 @@ class Styler:
             (
                 "background-color",
                 lambda value, color: _latex_preserve(
-                    "\cellcolor[HTML]{{{}}}{}".format(color.strip()[1:], value)
+                    "\\cellcolor[HTML]{{{}}}{}".format(color.strip()[1:], value)
                 ),
             )
         ]
@@ -440,18 +440,21 @@ class Styler:
 
     def to_latex(self, buf=None, encoding=None, **kwargs):
         r"""
-        Render object to a LaTeX tabular, longtable, or nested table/tabular while applying styles.
+        Render object to a LaTeX while applying styles.
 
         See Also
         --------
-        DataFrame.to_latex : Render object to a LaTeX tabular, longtable, or nested table/tabular without applying special styles.
+        DataFrame.to_latex : Render object to a LaTeX tabular, longtable,
+            or nested table/tabular without applying special styles.
         """
 
         translated = self._translate()
 
         # Convert data to str
-        # NB: astype(str) is plain wrong because it discards features such as float formatting.
-        # For a good result, a better integration is needed with the code that currently does cell formatting in DataFrame.to_latex.
+        # NB: astype(str) is plain wrong because it discards features
+        # such as float formatting.
+        # For a good result, a better integration is needed
+        # with the code that currently does cell formatting in DataFrame.to_latex.
         from pandas.io.formats.format import DataFrameFormatter, save_to_buffer
         from pandas.io.formats.latex import LatexFormatter
 
