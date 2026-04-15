@@ -1832,7 +1832,12 @@ def test_read_excel_hyperlinks(tmp_path):
     wb.save(path)
 
     expected_label = DataFrame(["pandas", "plain"])
-    result_label = pd.read_excel(path, header=None, engine="openpyxl", hyperlinks="label")
+    result_label = pd.read_excel(
+        path,
+        header=None,
+        engine="openpyxl",
+        hyperlinks="label",
+    )
     tm.assert_frame_equal(result_label, expected_label)
 
     expected_destination = DataFrame(["https://pandas.pydata.org", "plain"])
